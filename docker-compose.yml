@@ -1,0 +1,75 @@
+version: '3.4'
+
+networks:
+  laudo-network:
+    driver: bridge
+
+services:
+
+  rabbit-mq:
+    image: rabbitmq:3-management
+    container_name: rabbit-mq
+    ports: 
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "guest"
+      RABBITMQ_DEFAULT_PASS: "guest"
+    networks:
+      - laudo-network
+      
+  pixeon.api:
+    image: ${DOCKER_REGISTRY-}pixeonapi
+    container_name: pixeon-laudo-api
+    restart: always
+    build:
+      context: .
+      dockerfile: src/Pixeon.Api/Dockerfile
+    ports: 
+      - "5001:5001"
+    environment:
+       - ASPNETCORE_ENVIRONMENT=Production
+       - ASPNETCORE_URLS=http://*:5001
+    depends_on:   
+       - rabbit-mq
+    networks:
+    - laudo-network
+
+  pixeon.schedule.laudo:
+    image: ${DOCKER_REGISTRY-}pixeonschedulelaudo
+    container_name: pixeon-laudo-schedule
+    restart: always
+    build:
+      context: .
+      dockerfile: src/Pixeon.Schedule.Laudo/Dockerfile
+    ports: 
+      - "5002:5002"
+    environment:
+        - ASPNETCORE_ENVIRONMENT=Production
+        - ASPNETCORE_URLS=http://*:5002
+    depends_on:   
+        - rabbit-mq
+    networks:
+      - laudo-network
+
+  pixeon.nginx:
+    image: ${DOCKER_REGISTRY-}pixeonnginx
+    container_name: pixeon-nginx
+    restart: always
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports: 
+      - "80"
+      - "443:443"
+    depends_on:   
+        - pixeon.api
+        - pixeon.schedule.laudo
+    networks:
+      - laudo-network      
+        
+
+ 
+
+  
+
